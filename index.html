@@ -55,19 +55,77 @@
     </div>
 
     <script>
-        // JavaScript: Application logic
+        // JavaScript: Application logic with date awareness
         let habits = JSON.parse(localStorage.getItem('habits')) || [];
+
+        function getTodayDate() {
+            return new Date().toISOString().split('T')[0];
+        }
+
+        function getDaysSince(dateString) {
+            if (!dateString) return null;
+            const lastDate = new Date(dateString);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            lastDate.setHours(0, 0, 0, 0);
+            return Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
+        }
+
+        function shouldResetStreak(lastCompletedDate) {
+            const daysSince = getDaysSince(lastCompletedDate);
+            return daysSince !== null && daysSince > 1;
+        }
+
+        function migrateHabits() {
+            habits.forEach(habit => {
+                if (!habit.hasOwnProperty('lastCompletedDate')) {
+                    habit.lastCompletedDate = null;
+                    habit.completedToday = false;
+                }
+            });
+        }
+
+        function initializeHabits() {
+            migrateHabits();
+            const today = getTodayDate();
+
+            habits.forEach(habit => {
+                if (habit.lastCompletedDate) {
+                    if (shouldResetStreak(habit.lastCompletedDate)) {
+                        habit.streak = 0;
+                        habit.completedToday = false;
+                    } else {
+                        habit.completedToday = habit.lastCompletedDate === today;
+                    }
+                } else {
+                    habit.completedToday = false;
+                }
+            });
+
+            localStorage.setItem('habits', JSON.stringify(habits));
+        }
 
         function renderHabits() {
             const list = document.getElementById('habitList');
+            const today = getTodayDate();
             list.innerHTML = '';
-            
+
             habits.forEach((habit, index) => {
+                const isCompletedToday = habit.lastCompletedDate === today;
+                const daysSince = habit.lastCompletedDate ? getDaysSince(habit.lastCompletedDate) : null;
+                const lastDateDisplay = habit.lastCompletedDate ? new Date(habit.lastCompletedDate).toLocaleDateString() : 'Never';
+
                 list.innerHTML += `
                     <div class="habit-item">
                         <div class="habit-info">
-                            <input type="checkbox" ${habit.done ? 'checked' : ''} onclick="toggleHabit(${index})">
-                            <span>${habit.name}</span>
+                            <input type="checkbox"
+                                ${isCompletedToday ? 'checked' : ''}
+                                ${isCompletedToday ? 'disabled' : ''}
+                                onclick="toggleHabit(${index})">
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <span>${habit.name}</span>
+                                <span style="font-size: 12px; color: #666;">Last: ${lastDateDisplay}</span>
+                            </div>
                         </div>
                         <div class="habit-controls">
                             <span class="streak-badge">🔥 ${habit.streak} days</span>
@@ -76,26 +134,41 @@
                     </div>
                 `;
             });
-            
+
             localStorage.setItem('habits', JSON.stringify(habits));
         }
 
         function addHabit() {
             const input = document.getElementById('habitInput');
             if (input.value.trim() !== '') {
-                habits.push({ name: input.value, done: false, streak: 0 });
+                habits.push({
+                    name: input.value,
+                    lastCompletedDate: null,
+                    streak: 0,
+                    completedToday: false
+                });
                 input.value = '';
                 renderHabits();
             }
         }
 
         function toggleHabit(index) {
-            habits[index].done = !habits[index].done;
-            if (habits[index].done) {
-                habits[index].streak += 1;
-            } else {
-                habits[index].streak -= 1;
+            const today = getTodayDate();
+            const habit = habits[index];
+            const isCompletedToday = habit.lastCompletedDate === today;
+
+            if (isCompletedToday) {
+                return;
             }
+
+            const wasChecked = habit.lastCompletedDate === today;
+
+            if (!wasChecked) {
+                habit.lastCompletedDate = today;
+                habit.streak += 1;
+                habit.completedToday = true;
+            }
+
             renderHabits();
         }
 
@@ -112,6 +185,7 @@
         }
 
         // Initialize the app
+        initializeHabits();
         renderHabits();
     </script>
 </body>
