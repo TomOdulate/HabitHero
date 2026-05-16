@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HabitHero 🦸‍♂️</title>
+    <style>
+        /* CSS: Layout and styling */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .app-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        h1 { color: #1e3a8a; text-align: center; margin-top: 0; }
+        .input-area { display: flex; gap: 10px; margin-bottom: 20px; }
+        input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; }
+        
+        /* Buttons */
+        button { border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .add-btn { background: #2563eb; color: white; }
+        .delete-btn { background: #ef4444; color: white; padding: 5px 10px; font-size: 12px; }
+        .reset-btn { background: #6b7280; color: white; width: 100%; margin-top: 20px; }
+        
+        /* Habit List Items */
+        .habit-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; }
+        .habit-info { display: flex; align-items: center; gap: 10px; }
+        .habit-controls { display: flex; align-items: center; gap: 12px; }
+        .streak-badge { font-weight: bold; color: #d97706; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <h1>HabitHero 🦸‍"♂️</h1>
+        
+        <div class="input-area">
+            <input type="text" id="habitInput" placeholder="Enter a new habit...">
+            <button class="add-btn" onclick="addHabit()">Add</button>
+        </div>
+
+        <div id="habitList"></div>
+
+        <button class="reset-btn" onclick="resetAllHabits()">Reset All Habits 🔄</button>
+    </div>
+
+    <script>
+        // JavaScript: Application logic
+        let habits = JSON.parse(localStorage.getItem('habits')) || [];
+
+        function renderHabits() {
+            const list = document.getElementById('habitList');
+            list.innerHTML = '';
+            
+            habits.forEach((habit, index) => {
+                list.innerHTML += `
+                    <div class="habit-item">
+                        <div class="habit-info">
+                            <input type="checkbox" ${habit.done ? 'checked' : ''} onclick="toggleHabit(${index})">
+                            <span>${habit.name}</span>
+                        </div>
+                        <div class="habit-controls">
+                            <span class="streak-badge">🔥 ${habit.streak} days</span>
+                            <button class="delete-btn" onclick="deleteHabit(${index})">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            localStorage.setItem('habits', JSON.stringify(habits));
+        }
+
+        function addHabit() {
+            const input = document.getElementById('habitInput');
+            if (input.value.trim() !== '') {
+                habits.push({ name: input.value, done: false, streak: 0 });
+                input.value = '';
+                renderHabits();
+            }
+        }
+
+        function toggleHabit(index) {
+            habits[index].done = !habits[index].done;
+            if (habits[index].done) {
+                habits[index].streak += 1;
+            } else {
+                habits[index].streak -= 1;
+            }
+            renderHabits();
+        }
+
+        function deleteHabit(index) {
+            habits.splice(index, 1);
+            renderHabits();
+        }
+
+        function resetAllHabits() {
+            if (confirm("Are you sure you want to delete all habits? This cannot be undone.")) {
+                habits = [];
+                renderHabits();
+            }
+        }
+
+        // Initialize the app
+        renderHabits();
+    </script>
+</body>
+</html>
