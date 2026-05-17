@@ -23,31 +23,73 @@
             max-width: 400px;
         }
         h1 { color: #1e3a8a; text-align: center; margin-top: 0; }
-        .input-area { display: flex; gap: 10px; margin-bottom: 20px; }
-        input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; }
-        
+        .input-area { display: flex; gap: 10px; margin-bottom: 12px; }
+        input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; }
+        select { padding: 10px 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; background: white; cursor: pointer; }
+
         /* Buttons */
         button { border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; }
         .add-btn { background: #2563eb; color: white; }
         .delete-btn { background: #ef4444; color: white; padding: 5px 10px; font-size: 12px; }
         .reset-btn { background: #6b7280; color: white; width: 100%; margin-top: 20px; }
-        
+
+        /* Filter bar */
+        .filter-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+        .filter-btn {
+            padding: 5px 12px;
+            border-radius: 20px;
+            border: 1.5px solid #d1d5db;
+            background: white;
+            color: #374151;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+        .filter-btn.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+
         /* Habit List Items */
         .habit-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; }
         .habit-info { display: flex; align-items: center; gap: 10px; }
         .habit-controls { display: flex; align-items: center; gap: 12px; }
         .streak-badge { font-weight: bold; color: #d97706; }
+
+        /* Category badge on each habit */
+        .category-badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 7px;
+            border-radius: 10px;
+            margin-top: 3px;
+        }
+        .category-badge--health    { background: #dcfce7; color: #166534; }
+        .category-badge--work      { background: #dbeafe; color: #1e40af; }
+        .category-badge--mindset   { background: #f3e8ff; color: #6b21a8; }
+        .category-badge--general   { background: #f3f4f6; color: #374151; }
     </style>
 </head>
 <body>
 
     <div class="app-container">
         <h1>HabitHero</h1>
-        
+
         <div class="input-area">
             <input type="text" id="habitInput" placeholder="Enter a new habit...">
+            <select id="categorySelect">
+                <option value="General">General</option>
+                <option value="Health">Health</option>
+                <option value="Work">Work</option>
+                <option value="Mindset">Mindset</option>
+            </select>
             <button class="add-btn" onclick="addHabit()">Add</button>
         </div>
+
+        <div class="filter-bar" id="filterBar"></div>
 
         <div id="habitList"></div>
 
@@ -56,7 +98,9 @@
 
     <script>
         // JavaScript: Application logic with date awareness
+        const CATEGORIES = ['General', 'Health', 'Work', 'Mindset'];
         let habits = JSON.parse(localStorage.getItem('habits')) || [];
+        let activeFilter = 'All';
 
         function getTodayDate() {
             return new Date().toISOString().split('T')[0];
@@ -82,6 +126,9 @@
                     habit.lastCompletedDate = null;
                     habit.completedToday = false;
                 }
+                if (!habit.hasOwnProperty('category')) {
+                    habit.category = 'General';
+                }
             });
         }
 
@@ -105,15 +152,48 @@
             localStorage.setItem('habits', JSON.stringify(habits));
         }
 
+        function renderFilterBar() {
+            const bar = document.getElementById('filterBar');
+            const usedCategories = ['All', ...CATEGORIES.filter(c => habits.some(h => h.category === c))];
+
+            bar.innerHTML = usedCategories.map(cat => `
+                <button class="filter-btn ${activeFilter === cat ? 'active' : ''}"
+                        onclick="setFilter('${cat}')">${cat}</button>
+            `).join('');
+        }
+
+        function setFilter(category) {
+            activeFilter = category;
+            renderFilterBar();
+            renderHabits();
+        }
+
+        function categoryClass(category) {
+            return 'category-badge--' + category.toLowerCase();
+        }
+
         function renderHabits() {
             const list = document.getElementById('habitList');
             const today = getTodayDate();
+
+            const filtered = activeFilter === 'All'
+                ? habits
+                : habits.filter(h => h.category === activeFilter);
+
             list.innerHTML = '';
 
-            habits.forEach((habit, index) => {
+            if (filtered.length === 0) {
+                list.innerHTML = '<p style="color:#9ca3af; text-align:center; margin: 20px 0;">No habits here yet.</p>';
+                localStorage.setItem('habits', JSON.stringify(habits));
+                return;
+            }
+
+            filtered.forEach((habit) => {
+                const index = habits.indexOf(habit);
                 const isCompletedToday = habit.lastCompletedDate === today;
-                const daysSince = habit.lastCompletedDate ? getDaysSince(habit.lastCompletedDate) : null;
-                const lastDateDisplay = habit.lastCompletedDate ? new Date(habit.lastCompletedDate).toLocaleDateString() : 'Never';
+                const lastDateDisplay = habit.lastCompletedDate
+                    ? new Date(habit.lastCompletedDate).toLocaleDateString()
+                    : 'Never';
 
                 list.innerHTML += `
                     <div class="habit-item">
@@ -125,6 +205,7 @@
                             <div style="display: flex; flex-direction: column; gap: 4px;">
                                 <span>${habit.name}</span>
                                 <span style="font-size: 12px; color: #666;">Last: ${lastDateDisplay}</span>
+                                <span class="category-badge ${categoryClass(habit.category)}">${habit.category}</span>
                             </div>
                         </div>
                         <div class="habit-controls">
@@ -140,14 +221,17 @@
 
         function addHabit() {
             const input = document.getElementById('habitInput');
+            const category = document.getElementById('categorySelect').value;
             if (input.value.trim() !== '') {
                 habits.push({
-                    name: input.value,
+                    name: input.value.trim(),
+                    category: category,
                     lastCompletedDate: null,
                     streak: 0,
                     completedToday: false
                 });
                 input.value = '';
+                renderFilterBar();
                 renderHabits();
             }
         }
@@ -155,37 +239,41 @@
         function toggleHabit(index) {
             const today = getTodayDate();
             const habit = habits[index];
-            const isCompletedToday = habit.lastCompletedDate === today;
+            if (habit.lastCompletedDate === today) return;
 
-            if (isCompletedToday) {
-                return;
-            }
-
-            const wasChecked = habit.lastCompletedDate === today;
-
-            if (!wasChecked) {
-                habit.lastCompletedDate = today;
-                habit.streak += 1;
-                habit.completedToday = true;
-            }
+            habit.lastCompletedDate = today;
+            habit.streak += 1;
+            habit.completedToday = true;
 
             renderHabits();
         }
 
         function deleteHabit(index) {
             habits.splice(index, 1);
+            // Reset filter to All if the filtered category is now empty
+            if (activeFilter !== 'All' && !habits.some(h => h.category === activeFilter)) {
+                activeFilter = 'All';
+            }
+            renderFilterBar();
             renderHabits();
         }
 
         function resetAllHabits() {
             if (confirm("Are you sure you want to delete all habits? This cannot be undone.")) {
                 habits = [];
+                activeFilter = 'All';
+                renderFilterBar();
                 renderHabits();
             }
         }
 
+        document.getElementById('habitInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') addHabit();
+        });
+
         // Initialize the app
         initializeHabits();
+        renderFilterBar();
         renderHabits();
     </script>
 </body>
